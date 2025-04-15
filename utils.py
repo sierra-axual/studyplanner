@@ -63,12 +63,14 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
             if 'due_date' in module:  # Skip modules without due dates
                 module_name = module['name']
                 assignments = int(module.get('assignments', 1))
-                hours_per_assignment = float(module['hours_required'])
                 due_date = datetime.strptime(module['due_date'], '%Y-%m-%d').date()
                 days_before = int(module['days_before'])
                 
                 # Calculate submission date (due date minus days_before)
                 submission_date = due_date - timedelta(days=days_before)
+                
+                # For backward compatibility, use a default value if hours_required is not present
+                hours_per_assignment = float(module.get('hours_required', 5))
                 
                 # Calculate total hours needed
                 total_hours_needed = assignments * hours_per_assignment
@@ -138,7 +140,6 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
                 continue
                 
             module_name = module['name']
-            hours_per_assignment = float(module['hours_required'])
             days_before = int(module['days_before'])
             assignment_name = assignment['name']
             due_date = datetime.strptime(assignment['due_date'], '%Y-%m-%d').date()
@@ -146,8 +147,12 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
             # Calculate submission date (due date minus days_before)
             submission_date = due_date - timedelta(days=days_before)
             
-            # Calculate hours needed for this assignment
-            hours_needed = hours_per_assignment
+            # Get study and submission hours for this assignment
+            study_hours = assignment.get('study_hours', 0)
+            submission_hours = assignment.get('submission_hours', 0)
+            
+            # Calculate total hours needed for this assignment
+            hours_needed = study_hours + submission_hours
             
             # Find available days for this assignment (before submission date)
             assignment_available_days = [
@@ -166,13 +171,31 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
                 hours_for_day = min(day['hours'], hours_remaining)
                 hours_remaining -= hours_for_day
                 
+                # Determine if this is a study day or submission day
+                # Prioritize study hours first, then submission hours
+                original_study_hours = assignment.get('study_hours', 0)
+                original_submission_hours = assignment.get('submission_hours', 0)
+                
+                if study_hours > 0:
+                    task_type = "Study"
+                    study_hours -= hours_for_day
+                    hours_left = study_hours
+                else:
+                    task_type = "Submission"
+                    submission_hours -= hours_for_day
+                    hours_left = submission_hours
+                
                 # Add to study plan (only one assignment per day)
                 study_plan[date_str] = {
                     'date': day['date'],
-                    'module': f"{module_name} - {assignment_name}",
+                    'module': f"{module_name} - {assignment_name} ({task_type})",
                     'hours': hours_for_day,
                     'days_to_deadline': (due_date - day['date']).days,
-                    'day_type': day['type']
+                    'day_type': day['type'],
+                    'hours_left': hours_left,
+                    'hours_type': task_type,
+                    'original_study_hours': original_study_hours,
+                    'original_submission_hours': original_submission_hours
                 }
                 
                 # Remove this day from available days for other assignments
@@ -182,14 +205,19 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
     formatted_study_plan = {}
     for date_str, task in study_plan.items():
         if 'date' in task:  # New format
-            formatted_study_plan[date_str] = [
-                {
-                    'module': task['module'],
-                    'hours': task['hours'],
-                    'days_to_deadline': task['days_to_deadline'],
-                    'day_type': task['day_type']
-                }
-            ]
+            task_data = {
+                'module': task['module'],
+                'hours': task['hours'],
+                'days_to_deadline': task['days_to_deadline'],
+                'day_type': task['day_type']
+            }
+            
+            # Add hours left if available
+            if 'hours_left' in task:
+                task_data['hours_left'] = task['hours_left']
+                task_data['hours_type'] = task['hours_type']
+            
+            formatted_study_plan[date_str] = [task_data]
         else:  # Old format (for backward compatibility)
             formatted_study_plan[date_str] = task
     
@@ -282,13 +310,22 @@ def generate_excel(study_plan):
     data = []
     for date_str, tasks in study_plan.items():
         for task in tasks:
-            data.append({
+            task_data = {
                 'Date': date_str,
                 'Module': task['module'],
                 'Hours': task['hours'],
                 'Days to Deadline': task['days_to_deadline'],
                 'Day Type': task['day_type'].capitalize()
-            })
+            }
+            
+            # Add hours left if available
+            if 'hours_left' in task:
+                if 'Study' in task['module']:
+                    task_data['Hours Left'] = f"{task['hours_left']} hours left to study"
+                else:
+                    task_data['Hours Left'] = f"{task['hours_left']} hours left to submit"
+            
+            data.append(task_data)
     
     df = pd.DataFrame(data)
     
@@ -531,11 +568,20 @@ def generate_html_content(study_plan):
                     hours = task['hours']
                     days_to_deadline = task['days_to_deadline']
                     
+                    # Add hours left if available
+                    hours_left_html = ""
+                    if 'hours_left' in task:
+                        if 'Study' in module_name:
+                            hours_left_html = f'<span class="hours-left">({task["hours_left"]} hrs left to study)</span>'
+                        else:
+                            hours_left_html = f'<span class="hours-left">({task["hours_left"]} hrs left to submit)</span>'
+                    
                     html += f"""
                     <div class="task {task_class}">
                         {module_name}<br>
                         <span class="hours">{hours} hrs</span>
                         <span class="days-to-deadline">({days_to_deadline} days to deadline)</span>
+                        {hours_left_html}
                     </div>
                     """
             

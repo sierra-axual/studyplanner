@@ -100,7 +100,7 @@
     <div class="col-md-12">
         <div class="card">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Study Calendar</h4>
+                <h4 class="mb-0">Export Options</h4>
                 <div>
                     <a href="{{ url_for('export', format='pdf') }}" class="btn btn-light btn-sm export-btn">
                         <i class="fas fa-file-pdf me-1"></i> Export as PDF
@@ -113,139 +113,62 @@
                     </a>
                 </div>
             </div>
-            <div class="card-body">
-                <div id="calendar"></div>
-            </div>
         </div>
     </div>
 </div>
 
-<div class="row">
+<!-- Simple table view of study plan -->
+<div class="row mt-4">
     <div class="col-md-12">
-        <div class="card" id="event-details">
+        <div class="card">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Study Details</h4>
+                <h4 class="mb-0">Study Plan Table</h4>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h5 id="event-date"></h5>
-                        <p id="event-day-type" class="mb-2"></p>
-                    </div>
-                    <div class="col-md-6 text-md-end">
-                        <h5 id="event-days-to-deadline"></h5>
-                    </div>
-                </div>
-                <hr>
-                <div class="row">
-                    <div class="col-md-12">
-                        <h5>Study Tasks</h5>
-                        <ul id="event-tasks" class="list-group">
-                            <!-- Tasks will be added here dynamically -->
-                        </ul>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Module</th>
+                                <th>Hours</th>
+                                <th>Days to Deadline</th>
+                                <th>Hours Left</th>
+                                <th>Day Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for date, tasks in study_plan.items() %}
+                                {% for task in tasks %}
+                                <tr>
+                                    <td>{{ date }}</td>
+                                    <td>{{ task.module }}</td>
+                                    <td>{{ task.hours }}</td>
+                                    <td>{{ task.days_to_deadline }}</td>
+                                    <td>
+                                        {% if task.hours_left is defined %}
+                                            {% if "Study" in task.module %}
+                                                {{ task.hours_left }} hours left to study
+                                            {% else %}
+                                                {{ task.hours_left }} hours left to submit
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.day_type|capitalize }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Hidden data for JavaScript -->
-<div id="study-plan-data" style="display: none;" data-study-plan="{{ study_plan|tojson }}"></div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
-{% if has_data %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Get study plan data from hidden div
-        const studyPlanData = JSON.parse(document.getElementById('study-plan-data').getAttribute('data-study-plan'));
-        
-        // Convert study plan data to FullCalendar events
-        const events = [];
-        for (const [date, tasks] of Object.entries(studyPlanData)) {
-            for (const task of tasks) {
-                events.push({
-                    title: task.module + ' (' + task.hours + ' hrs)',
-                    start: date,
-                    allDay: true,
-                    extendedProps: {
-                        module: task.module,
-                        hours: task.hours,
-                        daysToDeadline: task.days_to_deadline,
-                        dayType: task.day_type,
-                        date: date
-                    },
-                    className: task.day_type + '-event'
-                });
-            }
-        }
-        
-        // Initialize calendar
-        const calendarEl = document.getElementById('calendar');
-        const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,listMonth'
-            },
-            events: events,
-            eventClick: function(info) {
-                showEventDetails(info.event);
-            }
-        });
-        
-        calendar.render();
-        
-        // Function to show event details
-        function showEventDetails(event) {
-            const eventDate = event.extendedProps.date;
-            const dayType = event.extendedProps.dayType;
-            
-            // Set event date and type
-            document.getElementById('event-date').textContent = new Date(eventDate).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-            
-            document.getElementById('event-day-type').textContent = 'Day Type: ' + dayType.charAt(0).toUpperCase() + dayType.slice(1);
-            
-            // Clear previous tasks
-            const tasksList = document.getElementById('event-tasks');
-            tasksList.innerHTML = '';
-            
-            // Get all events for this date
-            const eventsOnDate = calendar.getEvents().filter(e => e.extendedProps.date === eventDate);
-            
-            // Add tasks to the list
-            eventsOnDate.forEach(e => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                
-                const moduleName = document.createElement('span');
-                moduleName.textContent = e.extendedProps.module;
-                
-                const details = document.createElement('div');
-                details.innerHTML = 
-                    '<span class="badge bg-primary rounded-pill me-2">' + e.extendedProps.hours + ' hours</span>' +
-                    '<span class="badge bg-secondary rounded-pill">' + e.extendedProps.daysToDeadline + ' days to deadline</span>';
-                
-                li.appendChild(moduleName);
-                li.appendChild(details);
-                tasksList.appendChild(li);
-            });
-            
-            // Show the event details card
-            document.getElementById('event-details').style.display = 'block';
-            
-            // Scroll to event details
-            document.getElementById('event-details').scrollIntoView({ behavior: 'smooth' });
-        }
-    });
-</script>
-{% endif %}
 {% endblock %}

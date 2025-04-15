@@ -26,11 +26,6 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="module-hours" class="form-label">Hours Required per Assignment</label>
-                        <input type="number" class="form-control" id="module-hours" min="0.5" step="0.5" required>
-                    </div>
-                    
-                    <div class="mb-3">
                         <label for="module-days-before" class="form-label">Days Before Due Date to Submit</label>
                         <input type="number" class="form-control" id="module-days-before" min="0" required>
                     </div>
@@ -59,7 +54,6 @@
                         <thead>
                             <tr>
                                 <th>Module Name</th>
-                                <th>Hours/Assignment</th>
                                 <th>Submit Before</th>
                                 <th>Actions</th>
                             </tr>
@@ -68,7 +62,6 @@
                             {% for module in modules %}
                             <tr data-id="{{ module.id }}">
                                 <td>{{ module.name }}</td>
-                                <td>{{ module.hours_required }}</td>
                                 <td>{{ module.days_before }} days</td>
                                 <td>
                                     <a href="{{ url_for('assignments', module_id=module.id) }}" class="btn btn-sm btn-outline-info">
@@ -107,13 +100,11 @@
             
             const moduleId = document.getElementById('module-id').value;
             const moduleName = document.getElementById('module-name').value;
-            const moduleHours = document.getElementById('module-hours').value;
             const moduleDaysBefore = document.getElementById('module-days-before').value;
             
             const moduleData = {
                 id: moduleId ? parseInt(moduleId) : null,
                 name: moduleName,
-                hours_required: parseFloat(moduleHours),
                 days_before: parseInt(moduleDaysBefore)
             };
             
@@ -168,8 +159,7 @@
                 
                 document.getElementById('module-id').value = moduleId;
                 document.getElementById('module-name').value = cells[0].textContent;
-                document.getElementById('module-hours').value = cells[1].textContent;
-                document.getElementById('module-days-before').value = cells[2].textContent.split(' ')[0];
+                document.getElementById('module-days-before').value = cells[1].textContent.split(' ')[0];
                 
                 formTitle.textContent = 'Edit Module';
                 cancelEditBtn.classList.remove('d-none');
@@ -215,7 +205,6 @@
                 
                 row.innerHTML = `
                     <td>${module.name}</td>
-                    <td>${module.hours_required}</td>
                     <td>${module.days_before} days</td>
                     <td>
                         <a href="/assignments/${module.id}" class="btn btn-sm btn-outline-info">

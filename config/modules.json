@@ -2,13 +2,11 @@
   {
     "id": 1,
     "name": "Test",
-    "hours_required": 5,
     "days_before": 3
   },
   {
     "id": 2,
     "name": "test2",
-    "hours_required": 15,
     "days_before": 3
   }
 ]

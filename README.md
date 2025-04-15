@@ -28,19 +28,21 @@ A web application to help students manage their study responsibilities and creat
    cd studyplanner
    ```
 
-2. Install the required dependencies:
+2. Run the application using the single run script:
+   ```
+   python run.py
+   ```
+
+   This script will:
+   - Check and install required dependencies automatically
+   - Create necessary configuration directories and files
+   - Start the Flask application
+   - Open your browser to the application
+
+3. Alternatively, you can install dependencies manually and run the app directly:
    ```
    pip install flask flask-wtf pandas openpyxl
-   ```
-
-3. Run the application:
-   ```
    python app.py
-   ```
-
-4. Open your browser and navigate to:
-   ```
-   http://localhost:5000
    ```
 
 ## Usage
@@ -54,11 +56,13 @@ A web application to help students manage their study responsibilities and creat
 
 ## Project Structure
 
+- `run.py`: Single entry point script to run the application
 - `app.py`: Main Flask application
 - `forms.py`: Form definitions using Flask-WTF
 - `utils.py`: Utility functions for calculating study plans and generating exports
 - `templates/`: HTML templates
 - `static/`: Static files (CSS, JavaScript)
+- `config/`: Configuration files for modules, assignments, and study settings
 
 ## License
 

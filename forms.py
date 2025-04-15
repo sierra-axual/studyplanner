@@ -5,7 +5,6 @@ from wtforms.validators import DataRequired, NumberRange
 class ModuleForm(FlaskForm):
     """Form for adding/editing modules"""
     name = StringField('Module Name', validators=[DataRequired()])
-    hours_required = FloatField('Hours Required per Assignment', validators=[DataRequired(), NumberRange(min=0.5)])
     days_before = IntegerField('Days Before Due Date to Submit', validators=[DataRequired(), NumberRange(min=0)])
     submit = SubmitField('Save Module')
 
@@ -14,6 +13,8 @@ class AssignmentForm(FlaskForm):
     module_id = IntegerField('Module ID', validators=[DataRequired()])
     name = StringField('Assignment Name', validators=[DataRequired()])
     due_date = DateField('Due Date', format='%Y-%m-%d', validators=[DataRequired()])
+    study_hours = FloatField('Study Hours Required', validators=[DataRequired(), NumberRange(min=0.5)])
+    submission_hours = FloatField('Submission Hours Required', validators=[DataRequired(), NumberRange(min=0.5)])
     submit = SubmitField('Add Assignment')
 
 class StudyForm(FlaskForm):

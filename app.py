@@ -63,7 +63,9 @@ def save_configuration():
 
 # Load configuration at startup
 load_configuration()
-bank_holidays = [
+
+# Default bank holidays if not in settings
+default_bank_holidays = [
     {"date": "2025-01-01", "name": "New Year's Day", "selected": False, "hours": 0},
     {"date": "2025-04-18", "name": "Good Friday", "selected": False, "hours": 0},
     {"date": "2025-04-21", "name": "Easter Monday", "selected": False, "hours": 0},
@@ -73,6 +75,9 @@ bank_holidays = [
     {"date": "2025-12-25", "name": "Christmas Day", "selected": False, "hours": 0},
     {"date": "2025-12-26", "name": "Boxing Day", "selected": False, "hours": 0}
 ]
+
+# Use bank holidays from settings if available, otherwise use defaults
+bank_holidays = study_settings.get('bank_holidays', default_bank_holidays)
 
 @app.route('/')
 def index():
@@ -147,6 +152,15 @@ def assignments(module_id):
     # Get assignments for this module
     module_assignments = [a for a in assignments_data if a['module_id'] == module_id]
     return render_template('assignments.html', form=form, module=module, assignments=module_assignments)
+
+@app.route('/assignments/<int:module_id>/<int:assignment_id>', methods=['GET'])
+def get_assignment(module_id, assignment_id):
+    # Find the assignment
+    assignment = next((a for a in assignments_data if a['id'] == assignment_id and a['module_id'] == module_id), None)
+    if not assignment:
+        return jsonify({"success": False, "error": "Assignment not found"})
+    
+    return jsonify({"success": True, "assignment": assignment})
 
 @app.route('/delete_assignment/<int:assignment_id>', methods=['POST'])
 def delete_assignment(assignment_id):

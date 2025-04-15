@@ -3,24 +3,40 @@
     "id": 1,
     "module_id": 1,
     "name": "ass 1",
-    "due_date": "2025-05-30"
+    "due_date": "2025-05-30",
+    "study_hours": 4,
+    "submission_hours": 2
   },
   {
     "id": 2,
     "module_id": 1,
     "name": "ass 2",
-    "due_date": "2025-05-30"
+    "due_date": "2025-05-30",
+    "study_hours": 4,
+    "submission_hours": 2
   },
   {
     "id": 3,
     "module_id": 2,
     "name": "ass1",
-    "due_date": "2025-04-27"
+    "due_date": "2025-04-27",
+    "study_hours": 10,
+    "submission_hours": 5
   },
   {
     "id": 4,
     "module_id": 2,
     "name": "AA2",
-    "due_date": "2025-05-05"
+    "due_date": "2025-05-05",
+    "study_hours": 10,
+    "submission_hours": 5
+  },
+  {
+    "id": 5,
+    "module_id": 1,
+    "name": "Test Assignment 3",
+    "due_date": "2025-06-15",
+    "study_hours": 10,
+    "submission_hours": 5
   }
 ]
