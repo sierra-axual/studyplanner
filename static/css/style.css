@@ -1,0 +1,153 @@
+/* General Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+}
+
+/* Header and Navigation */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.nav-link {
+    font-weight: 500;
+}
+
+.nav-link.active {
+    font-weight: 700;
+}
+
+/* Cards */
+.card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: none;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+/* Forms */
+.form-label {
+    font-weight: 500;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* Tables */
+.table th {
+    font-weight: 600;
+    background-color: #f8f9fa;
+}
+
+/* Module List */
+#modules-list tr {
+    transition: background-color 0.2s;
+}
+
+#modules-list tr:hover {
+    background-color: #f0f8ff;
+}
+
+/* Study Days */
+.day-checkbox, .holiday-checkbox {
+    cursor: pointer;
+}
+
+/* Calendar */
+#calendar {
+    height: 600px;
+    margin-bottom: 20px;
+}
+
+.fc-daygrid-day-number {
+    font-weight: 500;
+}
+
+.fc-daygrid-day-top {
+    justify-content: center;
+}
+
+.fc-daygrid-day.fc-day-today {
+    background-color: #e6f2ff !important;
+}
+
+/* Event Details */
+#event-details {
+    margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+#event-date {
+    font-weight: 600;
+}
+
+#event-day-type {
+    color: #6c757d;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .card-header {
+        padding: 0.75rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    #calendar {
+        height: 500px;
+    }
+}
+
+/* Export Buttons */
+.export-btn {
+    transition: all 0.2s;
+}
+
+.export-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+}
+
+/* Alerts */
+.alert {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Footer */
+footer {
+    margin-top: 2rem;
+    border-top: 1px solid #dee2e6;
+}

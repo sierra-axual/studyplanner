@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Study Settings - Study Planner{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Study Settings</h1>
+        <p class="lead">Configure your study schedule and availability.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Days of the Week</h4>
+            </div>
+            <div class="card-body">
+                <p>Select which days of the week you can study and how many hours are available on each day.</p>
+                
+                <form id="study-days-form">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Available</th>
+                                    <th>Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                                <tr>
+                                    <td>{{ day }}</td>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" 
+                                                id="day-{{ day.lower() }}" 
+                                                data-day="{{ day.lower() }}"
+                                                {% if settings.study_days and settings.study_days.get(day.lower(), 0) > 0 %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm day-hours" 
+                                            id="hours-{{ day.lower() }}" 
+                                            data-day="{{ day.lower() }}"
+                                            min="0" max="24" step="0.5" 
+                                            value="{{ settings.study_days[day.lower()] if settings.study_days and settings.study_days.get(day.lower()) else 0 }}"
+                                            {% if not settings.study_days or settings.study_days.get(day.lower(), 0) == 0 %}disabled{% endif %}>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Save Study Days</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Leave Days</h4>
+            </div>
+            <div class="card-body">
+                <p>Specify how many leave days you plan to use for studying. Each leave day provides 6 hours of study time by default.</p>
+                
+                <form id="leave-days-form">
+                    <div class="mb-3">
+                        <label for="leave-days" class="form-label">Number of Leave Days</label>
+                        <input type="number" class="form-control" id="leave-days" min="0" 
+                            value="{{ settings.leave_days if settings.leave_days is defined else 0 }}">
+                        <div class="form-text">Leave days will be automatically allocated to optimize your study plan.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Save Leave Days</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Bank Holidays</h4>
+            </div>
+            <div class="card-body">
+                <p>Select which bank holidays you can use for studying and specify how many hours are available on each day.</p>
+                
+                <form id="holidays-form">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Holiday</th>
+                                    <th>Available</th>
+                                    <th>Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holiday in holidays %}
+                                <tr>
+                                    <td>{{ holiday.date }}</td>
+                                    <td>{{ holiday.name }}</td>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input holiday-checkbox" type="checkbox" 
+                                                id="holiday-{{ loop.index }}" 
+                                                data-index="{{ loop.index0 }}"
+                                                {% if holiday.selected %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm holiday-hours" 
+                                            id="holiday-hours-{{ loop.index }}" 
+                                            data-index="{{ loop.index0 }}"
+                                            min="0" max="24" step="0.5" 
+                                            value="{{ holiday.hours }}"
+                                            {% if not holiday.selected %}disabled{% endif %}>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Save Holiday Settings</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Study days form
+        const studyDaysForm = document.getElementById('study-days-form');
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        const dayHoursInputs = document.querySelectorAll('.day-hours');
+        
+        // Enable/disable hours input based on checkbox
+        dayCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const day = this.dataset.day;
+                const hoursInput = document.getElementById(`hours-${day}`);
+                
+                if (this.checked) {
+                    hoursInput.disabled = false;
+                    if (hoursInput.value === '0') {
+                        hoursInput.value = '2'; // Default value
+                    }
+                } else {
+                    hoursInput.disabled = true;
+                    hoursInput.value = '0';
+                }
+            });
+        });
+        
+        // Study days form submission
+        studyDaysForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const studyDays = {};
+            
+            dayCheckboxes.forEach(checkbox => {
+                const day = checkbox.dataset.day;
+                const hoursInput = document.getElementById(`hours-${day}`);
+                
+                if (checkbox.checked) {
+                    studyDays[day] = parseFloat(hoursInput.value);
+                } else {
+                    studyDays[day] = 0;
+                }
+            });
+            
+            // Send data to server
+            fetch('/study', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ study_days: studyDays })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Study days saved successfully!');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Leave days form
+        const leaveDaysForm = document.getElementById('leave-days-form');
+        
+        leaveDaysForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const leaveDays = parseInt(document.getElementById('leave-days').value);
+            
+            // Send data to server
+            fetch('/study', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ leave_days: leaveDays })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Leave days saved successfully!');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Holidays form
+        const holidaysForm = document.getElementById('holidays-form');
+        const holidayCheckboxes = document.querySelectorAll('.holiday-checkbox');
+        const holidayHoursInputs = document.querySelectorAll('.holiday-hours');
+        
+        // Enable/disable hours input based on checkbox
+        holidayCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const index = this.dataset.index;
+                const hoursInput = document.getElementById(`holiday-hours-${parseInt(index) + 1}`);
+                
+                if (this.checked) {
+                    hoursInput.disabled = false;
+                    if (hoursInput.value === '0') {
+                        hoursInput.value = '6'; // Default value
+                    }
+                } else {
+                    hoursInput.disabled = true;
+                    hoursInput.value = '0';
+                }
+            });
+        });
+        
+        // Holidays form submission
+        holidaysForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const holidays = [];
+            
+            // Get all holidays from the server-side data
+            const holidayCheckboxes = document.querySelectorAll('.holiday-checkbox');
+            const holidayHoursInputs = document.querySelectorAll('.holiday-hours');
+            
+            // Create an array to store holiday data from the DOM
+            for (let i = 0; i < holidayCheckboxes.length; i++) {
+                const checkbox = holidayCheckboxes[i];
+                const hoursInput = document.getElementById(`holiday-hours-${i + 1}`);
+                
+                holidays.push({
+                    date: checkbox.closest('tr').cells[0].textContent.trim(),
+                    name: checkbox.closest('tr').cells[1].textContent.trim(),
+                    selected: checkbox.checked,
+                    hours: parseFloat(hoursInput.value)
+                });
+            }
+            
+            // Send data to server
+            fetch('/update_holidays', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ holidays: holidays })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Holiday settings saved successfully!');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Study Guide - Study Planner{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fc-event {
+        cursor: pointer;
+    }
+    .fc-event-title {
+        font-weight: bold;
+    }
+    .fc-event-time {
+        font-style: italic;
+    }
+    .holiday-event {
+        background-color: #ffcccc !important;
+        border-color: #ff9999 !important;
+    }
+    .leave-event {
+        background-color: #ccffcc !important;
+        border-color: #99ff99 !important;
+    }
+    .regular-event {
+        background-color: #cce5ff !important;
+        border-color: #99ccff !important;
+    }
+    .export-btn {
+        margin-right: 10px;
+    }
+    #event-details {
+        display: none;
+    }
+    
+    /* Calendar styling */
+    .fc-daygrid-day-frame {
+        min-height: 120px;
+    }
+    .fc-daygrid-day-top {
+        text-align: right;
+        padding: 5px;
+    }
+    .fc-daygrid-day-number {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+    .fc-day-today {
+        background-color: #f0f8ff !important;
+    }
+    .fc-day-today .fc-daygrid-day-number {
+        color: #0066cc;
+    }
+    .fc-col-header-cell {
+        background-color: #4a89dc;
+        color: white;
+        padding: 10px 0;
+    }
+    .fc-scrollgrid-sync-inner {
+        text-align: center;
+    }
+    .fc-theme-standard th {
+        border-color: #ddd;
+    }
+    .fc-theme-standard td {
+        border-color: #eee;
+    }
+    .fc-daygrid-day.fc-day-sat, .fc-daygrid-day.fc-day-sun {
+        background-color: #f9f9f9;
+    }
+    .fc-daygrid-event-harness {
+        margin-bottom: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Study Guide</h1>
+        <p class="lead">View your personalized study plan and export it in various formats.</p>
+    </div>
+</div>
+
+{% if not has_data %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <h4 class="alert-heading">No Study Plan Available</h4>
+            <p>You need to add modules and configure your study settings before a study plan can be generated.</p>
+            <hr>
+            <p class="mb-0">
+                <a href="{{ url_for('modules') }}" class="btn btn-primary">Add Modules</a>
+                <a href="{{ url_for('study') }}" class="btn btn-secondary">Configure Study Settings</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Study Calendar</h4>
+                <div>
+                    <a href="{{ url_for('export', format='pdf') }}" class="btn btn-light btn-sm export-btn">
+                        <i class="fas fa-file-pdf me-1"></i> Export as PDF
+                    </a>
+                    <a href="{{ url_for('export', format='excel') }}" class="btn btn-light btn-sm export-btn">
+                        <i class="fas fa-file-excel me-1"></i> Export as Excel
+                    </a>
+                    <a href="{{ url_for('export', format='html') }}" class="btn btn-light btn-sm export-btn">
+                        <i class="fas fa-file-code me-1"></i> Export as HTML
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card" id="event-details">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Study Details</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 id="event-date"></h5>
+                        <p id="event-day-type" class="mb-2"></p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <h5 id="event-days-to-deadline"></h5>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h5>Study Tasks</h5>
+                        <ul id="event-tasks" class="list-group">
+                            <!-- Tasks will be added here dynamically -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden data for JavaScript -->
+<div id="study-plan-data" style="display: none;" data-study-plan="{{ study_plan|tojson }}"></div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if has_data %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get study plan data from hidden div
+        const studyPlanData = JSON.parse(document.getElementById('study-plan-data').getAttribute('data-study-plan'));
+        
+        // Convert study plan data to FullCalendar events
+        const events = [];
+        for (const [date, tasks] of Object.entries(studyPlanData)) {
+            for (const task of tasks) {
+                events.push({
+                    title: task.module + ' (' + task.hours + ' hrs)',
+                    start: date,
+                    allDay: true,
+                    extendedProps: {
+                        module: task.module,
+                        hours: task.hours,
+                        daysToDeadline: task.days_to_deadline,
+                        dayType: task.day_type,
+                        date: date
+                    },
+                    className: task.day_type + '-event'
+                });
+            }
+        }
+        
+        // Initialize calendar
+        const calendarEl = document.getElementById('calendar');
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listMonth'
+            },
+            events: events,
+            eventClick: function(info) {
+                showEventDetails(info.event);
+            }
+        });
+        
+        calendar.render();
+        
+        // Function to show event details
+        function showEventDetails(event) {
+            const eventDate = event.extendedProps.date;
+            const dayType = event.extendedProps.dayType;
+            
+            // Set event date and type
+            document.getElementById('event-date').textContent = new Date(eventDate).toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            document.getElementById('event-day-type').textContent = 'Day Type: ' + dayType.charAt(0).toUpperCase() + dayType.slice(1);
+            
+            // Clear previous tasks
+            const tasksList = document.getElementById('event-tasks');
+            tasksList.innerHTML = '';
+            
+            // Get all events for this date
+            const eventsOnDate = calendar.getEvents().filter(e => e.extendedProps.date === eventDate);
+            
+            // Add tasks to the list
+            eventsOnDate.forEach(e => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                
+                const moduleName = document.createElement('span');
+                moduleName.textContent = e.extendedProps.module;
+                
+                const details = document.createElement('div');
+                details.innerHTML = 
+                    '<span class="badge bg-primary rounded-pill me-2">' + e.extendedProps.hours + ' hours</span>' +
+                    '<span class="badge bg-secondary rounded-pill">' + e.extendedProps.daysToDeadline + ' days to deadline</span>';
+                
+                li.appendChild(moduleName);
+                li.appendChild(details);
+                tasksList.appendChild(li);
+            });
+            
+            // Show the event details card
+            document.getElementById('event-details').style.display = 'block';
+            
+            // Scroll to event details
+            document.getElementById('event-details').scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

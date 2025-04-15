@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Assignments for {{ module.name }} - Study Planner{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Assignments for {{ module.name }}</h1>
+        <p class="lead">Add and manage assignments for this module.</p>
+        <a href="{{ url_for('modules') }}" class="btn btn-outline-secondary mb-3">
+            <i class="fas fa-arrow-left me-1"></i> Back to Modules
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0" id="form-title">Add New Assignment</h4>
+            </div>
+            <div class="card-body">
+                <form id="assignment-form">
+                    <input type="hidden" id="assignment-id">
+                    <input type="hidden" id="module-id" value="{{ module.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="assignment-name" class="form-label">Assignment Name</label>
+                        <input type="text" class="form-control" id="assignment-name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="assignment-due-date" class="form-label">Due Date</label>
+                        <input type="date" class="form-control" id="assignment-due-date" required>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">Save Assignment</button>
+                        <button type="button" id="cancel-edit" class="btn btn-secondary d-none">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Module Details</h4>
+            </div>
+            <div class="card-body">
+                <p><strong>Hours Required per Assignment:</strong> {{ module.hours_required }}</p>
+                <p><strong>Days Before Due Date to Submit:</strong> {{ module.days_before }}</p>
+                <p class="mb-0 text-muted">These settings apply to all assignments in this module.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Assignments</h4>
+            </div>
+            <div class="card-body">
+                <div id="no-assignments-message" class="alert alert-info {% if assignments %}d-none{% endif %}">
+                    You haven't added any assignments for this module yet. Use the form on the left to add your first assignment.
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="assignments-table">
+                        <thead>
+                            <tr>
+                                <th>Assignment Name</th>
+                                <th>Due Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assignments-list">
+                            {% for assignment in assignments %}
+                            <tr data-id="{{ assignment.id }}">
+                                <td>{{ assignment.name }}</td>
+                                <td>{{ assignment.due_date }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary edit-assignment">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-assignment">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const assignmentForm = document.getElementById('assignment-form');
+        const assignmentsList = document.getElementById('assignments-list');
+        const noAssignmentsMessage = document.getElementById('no-assignments-message');
+        const formTitle = document.getElementById('form-title');
+        const cancelEditBtn = document.getElementById('cancel-edit');
+        const moduleId = document.getElementById('module-id').value;
+        
+        // Assignment form submission
+        assignmentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const assignmentId = document.getElementById('assignment-id').value;
+            const assignmentName = document.getElementById('assignment-name').value;
+            const assignmentDueDate = document.getElementById('assignment-due-date').value;
+            
+            const assignmentData = {
+                id: assignmentId ? parseInt(assignmentId) : null,
+                module_id: parseInt(moduleId),
+                name: assignmentName,
+                due_date: assignmentDueDate
+            };
+            
+            // Send data to server
+            fetch('/assignments/' + moduleId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(assignmentData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update assignments list
+                    updateAssignmentsList(data.assignments);
+                    
+                    // Reset form
+                    assignmentForm.reset();
+                    document.getElementById('assignment-id').value = '';
+                    formTitle.textContent = 'Add New Assignment';
+                    cancelEditBtn.classList.add('d-none');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Cancel edit button
+        cancelEditBtn.addEventListener('click', function() {
+            assignmentForm.reset();
+            document.getElementById('assignment-id').value = '';
+            formTitle.textContent = 'Add New Assignment';
+            cancelEditBtn.classList.add('d-none');
+        });
+        
+        // Edit and delete assignment buttons
+        assignmentsList.addEventListener('click', function(e) {
+            const target = e.target.closest('button');
+            if (!target) return;
+            
+            const row = target.closest('tr');
+            const assignmentId = row.dataset.id;
+            
+            if (target.classList.contains('edit-assignment') || target.parentElement.classList.contains('edit-assignment')) {
+                // Edit assignment
+                const cells = row.querySelectorAll('td');
+                
+                document.getElementById('assignment-id').value = assignmentId;
+                document.getElementById('assignment-name').value = cells[0].textContent;
+                document.getElementById('assignment-due-date').value = cells[1].textContent;
+                
+                formTitle.textContent = 'Edit Assignment';
+                cancelEditBtn.classList.remove('d-none');
+                
+                // Scroll to form
+                document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
+            } else if (target.classList.contains('delete-assignment') || target.parentElement.classList.contains('delete-assignment')) {
+                // Delete assignment
+                if (confirm('Are you sure you want to delete this assignment?')) {
+                    fetch(`/delete_assignment/${assignmentId}`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateAssignmentsList(data.assignments);
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                }
+            }
+        });
+        
+        // Function to update assignments list
+        function updateAssignmentsList(assignments) {
+            assignmentsList.innerHTML = '';
+            
+            if (assignments.length === 0) {
+                noAssignmentsMessage.classList.remove('d-none');
+                return;
+            }
+            
+            noAssignmentsMessage.classList.add('d-none');
+            
+            assignments.forEach(assignment => {
+                const row = document.createElement('tr');
+                row.dataset.id = assignment.id;
+                
+                row.innerHTML = `
+                    <td>${assignment.name}</td>
+                    <td>${assignment.due_date}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary edit-assignment">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger delete-assignment">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                assignmentsList.appendChild(row);
+            });
+        }
+    });
+</script>
+{% endblock %}

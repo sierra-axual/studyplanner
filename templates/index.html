@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Study Planner{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 text-center mb-4">
+        <h1 class="display-4">Welcome to Study Planner</h1>
+        <p class="lead">Organize your study schedule efficiently and stay on top of your assignments.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-book fa-3x mb-3 text-primary"></i>
+                <h3 class="card-title">Modules</h3>
+                <p class="card-text">Add your modules, assignments, due dates, and study requirements.</p>
+                <a href="{{ url_for('modules') }}" class="btn btn-primary">Go to Modules</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-alt fa-3x mb-3 text-primary"></i>
+                <h3 class="card-title">Study</h3>
+                <p class="card-text">Set your study schedule, including days of the week, holidays, and leave days.</p>
+                <a href="{{ url_for('study') }}" class="btn btn-primary">Go to Study</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-map fa-3x mb-3 text-primary"></i>
+                <h3 class="card-title">Guide</h3>
+                <p class="card-text">View your personalized study plan and export it in various formats.</p>
+                <a href="{{ url_for('guide') }}" class="btn btn-primary">Go to Guide</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">How to Use Study Planner</h4>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li class="mb-2">
+                        <strong>Add Your Modules:</strong> Start by adding your modules, including the number of assignments, due dates, and study hours required.
+                    </li>
+                    <li class="mb-2">
+                        <strong>Set Your Study Schedule:</strong> Configure which days of the week you can study and how many hours are available on each day.
+                    </li>
+                    <li class="mb-2">
+                        <strong>Customize Holidays and Leave Days:</strong> Select which holidays you can use for studying and add any leave days you plan to take.
+                    </li>
+                    <li class="mb-2">
+                        <strong>View Your Study Plan:</strong> Go to the Guide tab to see your personalized study plan in a calendar format.
+                    </li>
+                    <li>
+                        <strong>Export Your Plan:</strong> Download your study plan in PDF, HTML, or Excel format for offline reference.
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

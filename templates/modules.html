@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Modules - Study Planner{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Modules</h1>
+        <p class="lead">Add and manage your study modules and assignments.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0" id="form-title">Add New Module</h4>
+            </div>
+            <div class="card-body">
+                <form id="module-form">
+                    <input type="hidden" id="module-id">
+                    
+                    <div class="mb-3">
+                        <label for="module-name" class="form-label">Module Name</label>
+                        <input type="text" class="form-control" id="module-name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="module-hours" class="form-label">Hours Required per Assignment</label>
+                        <input type="number" class="form-control" id="module-hours" min="0.5" step="0.5" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="module-days-before" class="form-label">Days Before Due Date to Submit</label>
+                        <input type="number" class="form-control" id="module-days-before" min="0" required>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">Save Module</button>
+                        <button type="button" id="cancel-edit" class="btn btn-secondary d-none">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Your Modules</h4>
+            </div>
+            <div class="card-body">
+                <div id="no-modules-message" class="alert alert-info {% if modules %}d-none{% endif %}">
+                    You haven't added any modules yet. Use the form on the left to add your first module.
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="modules-table">
+                        <thead>
+                            <tr>
+                                <th>Module Name</th>
+                                <th>Hours/Assignment</th>
+                                <th>Submit Before</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modules-list">
+                            {% for module in modules %}
+                            <tr data-id="{{ module.id }}">
+                                <td>{{ module.name }}</td>
+                                <td>{{ module.hours_required }}</td>
+                                <td>{{ module.days_before }} days</td>
+                                <td>
+                                    <a href="{{ url_for('assignments', module_id=module.id) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-tasks"></i> Assignments
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-primary edit-module">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-module">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const moduleForm = document.getElementById('module-form');
+        const modulesList = document.getElementById('modules-list');
+        const noModulesMessage = document.getElementById('no-modules-message');
+        const formTitle = document.getElementById('form-title');
+        const cancelEditBtn = document.getElementById('cancel-edit');
+        
+        // Module form submission
+        moduleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const moduleId = document.getElementById('module-id').value;
+            const moduleName = document.getElementById('module-name').value;
+            const moduleHours = document.getElementById('module-hours').value;
+            const moduleDaysBefore = document.getElementById('module-days-before').value;
+            
+            const moduleData = {
+                id: moduleId ? parseInt(moduleId) : null,
+                name: moduleName,
+                hours_required: parseFloat(moduleHours),
+                days_before: parseInt(moduleDaysBefore)
+            };
+            
+            // Send data to server
+            fetch('/modules', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(moduleData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update modules list
+                    updateModulesList(data.modules);
+                    
+                    // Reset form
+                    moduleForm.reset();
+                    document.getElementById('module-id').value = '';
+                    formTitle.textContent = 'Add New Module';
+                    cancelEditBtn.classList.add('d-none');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Cancel edit button
+        cancelEditBtn.addEventListener('click', function() {
+            moduleForm.reset();
+            document.getElementById('module-id').value = '';
+            formTitle.textContent = 'Add New Module';
+            cancelEditBtn.classList.add('d-none');
+        });
+        
+        // Edit and delete module buttons
+        modulesList.addEventListener('click', function(e) {
+            const target = e.target.closest('button');
+            if (!target) return;
+            
+            const row = target.closest('tr');
+            const moduleId = row.dataset.id;
+            
+            if (target.classList.contains('edit-module') || target.parentElement.classList.contains('edit-module')) {
+                // Edit module
+                const cells = row.querySelectorAll('td');
+                
+                document.getElementById('module-id').value = moduleId;
+                document.getElementById('module-name').value = cells[0].textContent;
+                document.getElementById('module-hours').value = cells[1].textContent;
+                document.getElementById('module-days-before').value = cells[2].textContent.split(' ')[0];
+                
+                formTitle.textContent = 'Edit Module';
+                cancelEditBtn.classList.remove('d-none');
+                
+                // Scroll to form
+                document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
+            } else if (target.classList.contains('delete-module') || target.parentElement.classList.contains('delete-module')) {
+                // Delete module
+                if (confirm('Are you sure you want to delete this module?')) {
+                    fetch(`/delete_module/${moduleId}`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateModulesList(data.modules);
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                }
+            }
+        });
+        
+        // Function to update modules list
+        function updateModulesList(modules) {
+            modulesList.innerHTML = '';
+            
+            if (modules.length === 0) {
+                noModulesMessage.classList.remove('d-none');
+                return;
+            }
+            
+            noModulesMessage.classList.add('d-none');
+            
+            modules.forEach(module => {
+                const row = document.createElement('tr');
+                row.dataset.id = module.id;
+                
+                row.innerHTML = `
+                    <td>${module.name}</td>
+                    <td>${module.hours_required}</td>
+                    <td>${module.days_before} days</td>
+                    <td>
+                        <a href="/assignments/${module.id}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-tasks"></i> Assignments
+                        </a>
+                        <button class="btn btn-sm btn-outline-primary edit-module">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger delete-module">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                modulesList.appendChild(row);
+            });
+        }
+    });
+</script>
+{% endblock %}
