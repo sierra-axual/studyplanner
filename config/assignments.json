@@ -38,5 +38,13 @@
     "due_date": "2025-06-15",
     "study_hours": 10,
     "submission_hours": 5
+  },
+  {
+    "id": 6,
+    "module_id": 3,
+    "name": "Assignment A",
+    "due_date": "2025-05-30",
+    "study_hours": 8,
+    "submission_hours": 6
   }
 ]

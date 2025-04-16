@@ -102,14 +102,15 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
         # Allocate leave days (if any)
         leave_day_dates = allocate_leave_days(all_dates, leave_days, holiday_dict, study_days)
         
-        # Get all available study days
-        available_study_days = []
+        # Create a dictionary to track available hours for each day
+        daily_hours = {}
         for date in all_dates:
             day_name = date.strftime('%A').lower()
             date_str = date.strftime('%Y-%m-%d')
             
             # Check if it's a study day, holiday, or leave day
             hours_available = 0
+            day_type = 'regular'
             
             if date_str in holiday_dict:
                 hours_available = holiday_dict[date_str]['hours']
@@ -119,19 +120,21 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
                 day_type = 'leave'
             else:
                 hours_available = study_days.get(day_name, 0)
-                day_type = 'regular'
             
             if hours_available > 0:
-                available_study_days.append({
+                daily_hours[date_str] = {
                     'date': date,
-                    'hours': hours_available,
+                    'hours_available': hours_available,
+                    'hours_used': 0,
                     'type': day_type
-                })
+                }
         
-        # Sort available days by date
-        available_study_days.sort(key=lambda x: x['date'])
+        # Initialize study plan with empty lists for each date
+        for date_str in daily_hours:
+            if date_str not in study_plan:
+                study_plan[date_str] = []
         
-        # For each assignment (in order of due date)
+        # Process each assignment
         for assignment in all_assignments:
             # Find the module
             module_id = assignment['module_id']
@@ -148,78 +151,175 @@ def calculate_study_plan(modules, study_settings, bank_holidays, assignments_dat
             submission_date = due_date - timedelta(days=days_before)
             
             # Get study and submission hours for this assignment
-            study_hours = assignment.get('study_hours', 0)
-            submission_hours = assignment.get('submission_hours', 0)
+            study_hours = float(assignment.get('study_hours', 0))
+            submission_hours = float(assignment.get('submission_hours', 0))
             
-            # Calculate total hours needed for this assignment
-            hours_needed = study_hours + submission_hours
+            # First, schedule all study hours
+            remaining_study_hours = study_hours
             
-            # Find available days for this assignment (before submission date)
-            assignment_available_days = [
-                day for day in available_study_days 
-                if day['date'] <= submission_date and 
-                day['date'] not in [d['date'] for d in study_plan.values() if 'date' in d]
-            ]
+            # Find available days for study (from today until submission date)
+            study_days_list = sorted([
+                (date_str, day_info) for date_str, day_info in daily_hours.items()
+                if day_info['date'] >= start_date and day_info['date'] <= submission_date
+            ], key=lambda x: x[1]['date'])
             
-            # Distribute hours across available days
-            hours_remaining = hours_needed
-            for day in assignment_available_days:
-                if hours_remaining <= 0:
+            # Allocate study hours
+            for date_str, day_info in study_days_list:
+                if remaining_study_hours <= 0:
                     break
-                    
-                date_str = day['date'].strftime('%Y-%m-%d')
-                hours_for_day = min(day['hours'], hours_remaining)
-                hours_remaining -= hours_for_day
                 
-                # Determine if this is a study day or submission day
-                # Prioritize study hours first, then submission hours
-                original_study_hours = assignment.get('study_hours', 0)
-                original_submission_hours = assignment.get('submission_hours', 0)
+                # Calculate how many hours can be allocated on this day
+                available_hours = day_info['hours_available'] - day_info['hours_used']
+                if available_hours <= 0:
+                    continue
                 
+                hours_to_allocate = min(available_hours, remaining_study_hours)
+                remaining_study_hours -= hours_to_allocate
+                daily_hours[date_str]['hours_used'] += hours_to_allocate
+                
+                # Add to study plan
+                study_plan[date_str].append({
+                    'module': f"{module_name} - {assignment_name} (Study)",
+                    'hours': hours_to_allocate,
+                    'days_to_deadline': (due_date - day_info['date']).days,
+                    'day_type': day_info['type'],
+                    'hours_left': remaining_study_hours,
+                    'hours_type': 'Study',
+                    'original_study_hours': study_hours,
+                    'original_submission_hours': submission_hours
+                })
+            
+            # Then, schedule all submission hours
+            remaining_submission_hours = submission_hours
+            
+            # Find available days for submission (from after study is complete until submission date)
+            # We need to find the last day used for study
+            last_study_day = None
+            
+            # If study hours are 0 or all study hours have been allocated
+            if study_hours <= 0 or remaining_study_hours <= 0:
+                # If study hours were allocated, find the last day
                 if study_hours > 0:
-                    task_type = "Study"
-                    study_hours -= hours_for_day
-                    hours_left = study_hours
-                else:
-                    task_type = "Submission"
-                    submission_hours -= hours_for_day
-                    hours_left = submission_hours
+                    for date_str, day_info in reversed(study_days_list):
+                        if any(task['module'] == f"{module_name} - {assignment_name} (Study)" for task in study_plan.get(date_str, [])):
+                            last_study_day = day_info['date']
+                            break
                 
-                # Add to study plan (only one assignment per day)
-                study_plan[date_str] = {
-                    'date': day['date'],
-                    'module': f"{module_name} - {assignment_name} ({task_type})",
-                    'hours': hours_for_day,
-                    'days_to_deadline': (due_date - day['date']).days,
-                    'day_type': day['type'],
-                    'hours_left': hours_left,
-                    'hours_type': task_type,
-                    'original_study_hours': original_study_hours,
-                    'original_submission_hours': original_submission_hours
-                }
+                # If no study days were used or study_hours was 0, start from today
+                if last_study_day is None:
+                    last_study_day = start_date - timedelta(days=1)
                 
-                # Remove this day from available days for other assignments
-                available_study_days = [d for d in available_study_days if d['date'] != day['date']]
+                # Find available days for submission
+                submission_days_list = sorted([
+                    (date_str, day_info) for date_str, day_info in daily_hours.items()
+                    if day_info['date'] > last_study_day and day_info['date'] <= submission_date
+                ], key=lambda x: x[1]['date'])
+                
+                # If no submission days are available after the last study day,
+                # use any available days up to the submission date
+                if not submission_days_list and submission_hours > 0:
+                    # Try to find days with available hours
+                    submission_days_list = sorted([
+                        (date_str, day_info) for date_str, day_info in daily_hours.items()
+                        if day_info['date'] <= submission_date and 
+                        (day_info['hours_available'] - day_info['hours_used']) > 0
+                    ], key=lambda x: x[1]['date'])
+                    
+                    # If still no days available, try to reuse days that already have tasks
+                    if not submission_days_list:
+                        # Find the last day before submission date
+                        last_possible_day = None
+                        for date_str, day_info in sorted(daily_hours.items(), key=lambda x: x[1]['date'], reverse=True):
+                            if day_info['date'] <= submission_date:
+                                last_possible_day = date_str
+                                break
+                        
+                        if last_possible_day:
+                            # Force allocation on the last possible day
+                            submission_days_list = [(last_possible_day, daily_hours[last_possible_day])]
+                            
+                            # Reset hours_used for this day to ensure we can allocate submission hours
+                            daily_hours[last_possible_day]['hours_used'] = 0
+            else:
+                # If study hours are not complete, don't schedule submission hours yet
+                submission_days_list = []
+            
+            # Allocate submission hours
+            for date_str, day_info in submission_days_list:
+                if remaining_submission_hours <= 0:
+                    break
+                
+                # Calculate how many hours can be allocated on this day
+                available_hours = day_info['hours_available'] - day_info['hours_used']
+                if available_hours <= 0:
+                    # Force allocation even if no hours are available
+                    available_hours = day_info['hours_available']
+                    daily_hours[date_str]['hours_used'] = 0
+                
+                hours_to_allocate = min(available_hours, remaining_submission_hours)
+                remaining_submission_hours -= hours_to_allocate
+                daily_hours[date_str]['hours_used'] += hours_to_allocate
+                
+                # Add to study plan
+                study_plan[date_str].append({
+                    'module': f"{module_name} - {assignment_name} (Submission)",
+                    'hours': hours_to_allocate,
+                    'days_to_deadline': (due_date - day_info['date']).days,
+                    'day_type': day_info['type'],
+                    'hours_left': remaining_submission_hours,
+                    'hours_type': 'Submission',
+                    'original_study_hours': study_hours,
+                    'original_submission_hours': submission_hours
+                })
+            
+            # If we still have submission hours left, force allocation on the last study day
+            if remaining_submission_hours > 0 and study_hours > 0:
+                last_study_date_str = None
+                for date_str, day_info in reversed(study_days_list):
+                    if any(task['module'] == f"{module_name} - {assignment_name} (Study)" for task in study_plan.get(date_str, [])):
+                        last_study_date_str = date_str
+                        break
+                
+                if last_study_date_str:
+                    # Force allocation on the last study day
+                    day_info = daily_hours[last_study_date_str]
+                    hours_to_allocate = remaining_submission_hours
+                    remaining_submission_hours = 0
+                    
+                    # Add to study plan
+                    study_plan[last_study_date_str].append({
+                        'module': f"{module_name} - {assignment_name} (Submission)",
+                        'hours': hours_to_allocate,
+                        'days_to_deadline': (due_date - day_info['date']).days,
+                        'day_type': day_info['type'],
+                        'hours_left': remaining_submission_hours,
+                        'hours_type': 'Submission',
+                        'original_study_hours': study_hours,
+                        'original_submission_hours': submission_hours
+                    })
     
     # Convert study plan to the expected format
     formatted_study_plan = {}
-    for date_str, task in study_plan.items():
-        if 'date' in task:  # New format
+    for date_str, tasks in study_plan.items():
+        if isinstance(tasks, list):
+            # New format (list of tasks)
+            formatted_study_plan[date_str] = tasks
+        elif 'date' in tasks:  # Old format (single task as dict)
             task_data = {
-                'module': task['module'],
-                'hours': task['hours'],
-                'days_to_deadline': task['days_to_deadline'],
-                'day_type': task['day_type']
+                'module': tasks['module'],
+                'hours': tasks['hours'],
+                'days_to_deadline': tasks['days_to_deadline'],
+                'day_type': tasks['day_type']
             }
             
             # Add hours left if available
-            if 'hours_left' in task:
-                task_data['hours_left'] = task['hours_left']
-                task_data['hours_type'] = task['hours_type']
+            if 'hours_left' in tasks:
+                task_data['hours_left'] = tasks['hours_left']
+                task_data['hours_type'] = tasks['hours_type']
             
             formatted_study_plan[date_str] = [task_data]
         else:  # Old format (for backward compatibility)
-            formatted_study_plan[date_str] = task
+            formatted_study_plan[date_str] = tasks
     
     return formatted_study_plan
 
